@@ -84,57 +84,69 @@ Now that we know what balance means, we need to take care of always keeping the 
 
 Balance is related to subtree heights, so we might think of writing a "height" method that descends a given subtree to calculate its height. But this can be come quite costly in terms of CPU time, as these calculations would need to be done repeatedly as we try to determine the balance of each subtee and each subtree's subree, and so on.
 
-Instead, we store a "balance factor" in each node. This factor is an integer that tells the height difference between the node's left and right subtrees. Based on our definition of "balanced", the balance factor of a balanced tree can be -1, 0, or +1. If the balance factor is outside that range (that is, either smaller than -1 or larger than +1), the tree is out of balance and needs to be rebalanced.
+Instead, we store a "balance factor" in each node. This factor is an integer that tells the height difference between the node's right and left subtrees, or more formally (this is just maths, no Go code):
 
-The balance factor is maintained by the `Insert` and `Delete` operations.
+    balance_factor := height(right_subtree) - height(left_subtree)
+
+Based on our definition of "balanced", the balance factor of a balanced tree can be -1, 0, or +1. If the balance factor is outside that range (that is, either smaller than -1 or larger than +1), the tree is out of balance and needs to be rebalanced.
+
+After inserting or deleting a node, the balance factors of all affected nodes and parent nodes must be updated.
 
 *For brevity, this article only handles the `Insert` case.*
 
 Here is how `Insert` maintains the balance factors:
 
-1. First, `Insert` descends recursively down the tree until it finds a node `n` to append the new value. `n` is either a leaf or a half-leaf.
+1. First, `Insert` descends recursively down the tree until it finds a node `n` to append the new value. `n` is either a leaf (that is, it has no children) or a half-leaf (that is, it has exactly one (direct) child).
 2. If `n` is a leaf, adding a new child node increases the height of the subtree `n` by 1. If the child node is added to the left, the balance of `n` changes from 0 to -1. If the child is added to the right, the balance changes from 0 to 1.
 2. `Insert` now adds a new child node to node `n`.
 3. The height increase is passed back to `n`'s parent node.
 4. Depending on whether `n` is the left or the right child, the parent node adjusts its balance accordingly.
 
-**An imbalance is detected if the balance factor of a node changes to +2 or -2, respectively.** At this point, the affected node must start the rebalancing.
+**If the balance factor of a node changes to +2 or -2, respectively, we have detected an imbalance.** At this point, the tree needs rebalancing.
 
 HYPE[Balance Factors](BalanceFactors.html)
 
+
 ### Removing the imbalance
 
-Let's assume the unbalanced node has a balance factor of -2. This means that its left subtree is too high. Two situations can occur here.
+Let's assume a node `n`that has one left child and no right child. `n`'s left child has no children; otherwise, the tree at node `n` would already be out of balance. (The following considerations also apply to inserting below the *right* child in a mirror-reversed way, so we can focus on the left-child scenario here.)
 
-#### 1. The left child node has a balance of 0 or -1.
+Now let's insert a new node below the left child of `n`.
 
-In other words, the left child node's left subtree is higher than its right subtree. This is an easy case. All we have to do is to "rotate" the tree:
+Two scenarios can happen:
+
+
+#### 1. The new node was inserted as the *left* child of `n`'s left child.
+
+Since `n` has no right children, its balance factor is now -2. (Remember, the balance is defined as "height of right tree minus height of left tree".)
+This is an easy case. All we have to do is to "rotate" the tree:
 
 1. Make the left child node the root node.
-2. If the former left child node has a right subtree, add this subtree to the former root node as the left child.
-3. Make the former root node the new root node's right child.
+2. Make the former root node the new root node's right child.
 
-This may sound a bit complicated, so here is a visualization:
+Here is a visualization of these steps (click "Rotate"):
 
 HYPE[Rotation](Rotation.html)
 
-Clicking on "Without right child" shows the simples form of rotation. This is only step 1 and 3 of the above sequence. Step 2 occurs when the left child node also has a right child - click "With right child" to watch this scenario.
+The balance is restored, and the tree's sort order is still intact.
+
+Easy enough, isn't it? Well, only until we look into the other scenario...
 
 
-#### 2. The left child node has a balance of 1.
+#### 2. The new node was inserted as the *right* child of `n`'s left child.
 
-This means that the left child's *right* subtree is higher than its left subtree. We can try to apply the same type of rotation to this scenario. Click the button "Single Rotation" and see what happens:
+This looks quite similar to the previous case, so let's try the same rotation here. Click "Single Rotation" in the diagram below and see what happens:
 
 HYPE[Double Rotation](DoubleRotation.html)
 
 The tree is again unbalanced; the root node's balance factor changed from -2 to +2. Obviously, a simple rotation as in case 1 does not work here.
 
-Now try the second button, "Double Rotation". Here, the unbalanced node's left subtree is rotated first, and now the situation is similar to case 1. Now rotating the tree to the right rebalances the tree.
+Now try the second button, "Double Rotation". Here, the unbalanced node's left subtree is rotated first, and now the situation is similar to case 1. Rotating the tree to the right finally rebalances the tree and retains the sort order.
 
 
 #### Two more cases and a summary
 
-The two cases above assumed that the unbalanced node's balance factor is -2. If the balance factor is +2, the same cases apply in an analgous way, except that everything is mirror-reversed.
+The two cases above assumed that the unbalanced node's balance factor is -2. If the balance factor is +2, the same cases apply in an analogous way, except that everything is mirror-reversed.
 
 
 To summarize, here is a scenario where all of the above is included - double rotation as well as reassigning a child node/tree to a rotated node.
@@ -185,14 +197,22 @@ type Node struct {
 
 // ### The modified `Insert` function
 
-// `Insert` returns:
+// `Insert` takes a search value and some data and inserts a new node (unless a node with the given
+// search value already exists, in which case `Insert` only replaces the data).
+//
+// The third parameter, `p`, is the node's parent node. It is only required for rebalancing.
+// Without this parameter, each node would need to store and maintain a pointer to its parent.
+//
+// It returns:
 //
 // * `true` if the height of the tree has increased.
 // * `false` otherwise.
-func (n *Node) Insert(value, data string) bool {
-
+func (n *Node) Insert(value, data string, p *Node) bool {
+	// The following actions depend on whether the new search value is equal, less, or greater than
+	// the current node's search value.
 	switch {
 	case value == n.Value:
+		n.Data = data
 		return false // Node already exists, nothing changes
 	case value < n.Value:
 		// If there is no left child, create a new one.
@@ -208,7 +228,7 @@ func (n *Node) Insert(value, data string) bool {
 			return false
 		}
 		// The left child is not nil. Continue in the left subtree.
-		if n.Left.Insert(value, data) {
+		if n.Left.Insert(value, data, n) {
 			// The left subtree has grown by one: Decrease the balance by one.
 			n.bal--
 		}
@@ -223,14 +243,14 @@ func (n *Node) Insert(value, data string) bool {
 			}
 			return false
 		}
-		if n.Right.Insert(value, data) {
+		if n.Right.Insert(value, data, n) {
 			// The right subtree has grown by one. Increase the balance by one.
 			n.bal++
 		}
 	}
 	// If rebalancing is required, the method `rebalance()` takes care of all the different rebalancing scenarios.
 	if n.bal < -1 || n.bal > 1 {
-		n.rebalance()
+		n.rebalance(p)
 	}
 	if n.bal != 0 {
 		return true
@@ -243,6 +263,7 @@ func (n *Node) Insert(value, data string) bool {
 
 // `rotateLeft` takes a parent node and rotates the current node's subtree to the left.
 func (n *Node) rotateLeft(p *Node) *Node {
+	fmt.Println("rotateLeft(" + n.Value + ")")
 	// Save `n`'s right child.
 	r := n.Right
 	// `r`'s right subtree gets reassigned to `n`.
@@ -258,7 +279,7 @@ func (n *Node) rotateLeft(p *Node) *Node {
 		}
 	}
 	// Finally, adjust the balances.
-	if r.bal == 0 { // This case does not apply to inserts, only to deletes.
+	if r.bal == 0 { // This case does not apply to inserts, only to deletes, which are not discussed further here.
 		n.bal = 1
 		r.bal = -1
 	} else {
@@ -270,6 +291,7 @@ func (n *Node) rotateLeft(p *Node) *Node {
 
 // `rotateRight` is the mirrored version of `rotateLeft`.
 func (n *Node) rotateRight(p *Node) *Node {
+	fmt.Println("rotateRight(" + n.Value + ")")
 	l := n.Left
 	n.Left = l.Right
 	l.Right = n
@@ -280,26 +302,50 @@ func (n *Node) rotateRight(p *Node) *Node {
 			p.Right = l
 		}
 	}
+	if l.bal == 0 {
+		n.bal = -1
+		l.bal = 1
+	} else {
+		n.bal = 0
+		l.bal = 0
+	}
 	return l
 }
 
 // `rotateRightLeft` first rotates the right child to the right, then the current node to the left.
 func (n *Node) rotateRightLeft(p *Node) *Node {
-	// TODO
+	n.Right.rotateRight(n)
+	n.rotateLeft(p)
+	return n
 }
 
-// `rotateLeftRight` first rotates the right child to the left, then the current node to the right.
-func (n *Node) rotateRightLeft(p *Node) *Node {
-	// TODO
+// `rotateLeftRight` first rotates the left child to the left, then the current node to the right.
+func (n *Node) rotateLeftRight(p *Node) *Node {
+	n.Left.rotateLeft(n)
+	n.rotateRight(p)
+	return n
 }
 
 // `rebalance` brings the tree back into a balanced state.
-func (n *Node) rebalance() {
+func (n *Node) rebalance(p *Node) {
 	fmt.Println("rebalance " + n.Value)
-	// TODO
+	switch {
+	// Left subtree is too high, and left child is left-heavy.
+	case n.bal == -2 && n.Left.bal <= 0:
+		n.rotateRight(p)
+	// Right subtree is too high, and right child is right-heavy.
+	case n.bal == 2 && n.Right.bal >= 0:
+		n.rotateLeft(p)
+	// Left subtree is too high, and left child is right-heavy.
+	case n.bal == -2 && n.Left.bal == 1:
+		n.rotateLeftRight(p)
+	// Right subtree is too high, and right child is left-heavy.
+	case n.bal == 2 && n.Right.bal == -1:
+		n.rotateRightLeft(p)
+	}
 }
 
-// `Find` stays the same.
+// `Find` stays the same as in the previous article.
 func (n *Node) Find(s string) (string, bool) {
 
 	if n == nil {
@@ -347,7 +393,12 @@ func (t *Tree) Insert(value, data string) {
 		t.Root = &Node{Value: value, Data: data}
 		return
 	}
-	t.Root.Insert(value, data)
+	// In case of a tree rotation, the root node might change; hence we create a "fake" parent node
+	// for t.Root, so if t.Root chnanges, we can fetch the new root from the fake parent and assign
+	// it back to t.Root.
+	tempParent := &Node{Left: t.Root, Right: nil}
+	t.Root.Insert(value, data, tempParent)
+	t.Root = tempParent.Left
 }
 
 func (t *Tree) Find(s string) (string, bool) {
@@ -372,8 +423,8 @@ func (t *Tree) Dump() {
 }
 
 func main() {
-	values := []string{"d", "b", "g", "c", "e", "a", "h", "f", "i", "j", "k", "l"}
-	data := []string{"delta", "bravo", "golf", "charlie", "echo", "alpha", "hotel", "foxtrot", "india", "juliett", "kilo", "lima"}
+	values := []string{"d", "b", "g", "c", "e", "a", "h", "f", "i", "j", "l", "k"}
+	data := []string{"delta", "bravo", "golf", "charlie", "echo", "alpha", "hotel", "foxtrot", "india", "juliett", "lima", "kilo"}
 
 	tree := &Tree{}
 	for i := 0; i < len(values); i++ {
@@ -386,9 +437,6 @@ func main() {
 	tree.Traverse(tree.Root, func(n *Node) { fmt.Print(n.Value, ": ", n.Data, " | ") })
 	fmt.Println()
 
-	tree.Dump()
-	tree.Root.Right.Right.Right.Right.rotateLeft(tree.Root.Right.Right.Right)
-	tree.Dump()
 }
 
 /*
