@@ -280,15 +280,9 @@ func (n *Node) rotateLeft(p *Node) *Node {
 			p.Right = r
 		}
 	}
-	// Finally, adjust the balances.
-	if r.bal == 0 { // This case does not apply to inserts, only to deletes, which are not discussed further here.
-		fmt.Println("r.bal == 0 for " + r.Value)
-		n.bal = 1
-		r.bal = -1
-	} else {
-		n.bal = 0
-		r.bal = 0
-	}
+	// Finally, adjust the balances. After a single rotation, the subtrees are always of the same height. (Note: this applies to `Insert` operations only.)
+	n.bal = 0
+	r.bal = 0
 	return r
 }
 
@@ -304,13 +298,8 @@ func (n *Node) rotateRight(p *Node) *Node {
 			p.Right = l
 		}
 	}
-	if l.bal == 0 {
-		n.bal = -1
-		l.bal = 1
-	} else {
-		n.bal = 0
-		l.bal = 0
-	}
+	n.bal = 0
+	l.bal = 0
 	return l
 }
 
@@ -465,6 +454,7 @@ go build
 
 ## Conclusion
 
+For the sake of brevity, I omitted the Delete operation. Deleting is a bit more involved than inserting
 
 
 */
