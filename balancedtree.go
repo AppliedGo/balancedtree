@@ -217,35 +217,37 @@ func (n *Node) Insert(value, data string, p *Node) bool {
 	case value < n.Value:
 		// If there is no left child, create a new one.
 		if n.Left == nil {
-			// A new left child reduces the balance of this node by one, making it either 0 or -1.
-			n.bal--
 			// Create a new node.
 			n.Left = &Node{Value: value, Data: data}
 			// If there is no right child, the new child node has increased the height of this subtree.
 			if n.Right == nil {
-				return true
+				// There is only a left child (the new one).
+				n.bal = -1
+			} else {
+				// There is a left and a right child. The right child cannot have children;
+				// otherwise the tree would already have been out of balance at `n`.
+				n.bal = 0
 			}
-			return false
+		} else {
+			// The left child is not nil. Continue in the left subtree.
+			if n.Left.Insert(value, data, n) {
+				// The left subtree has grown by one: Decrease the balance by one.
+				n.bal--
+			}
 		}
-		// The left child is not nil. Continue in the left subtree.
-		if n.Left.Insert(value, data, n) {
-			// The left subtree has grown by one: Decrease the balance by one.
-			n.bal--
-		}
+	// This case is analogous to `value < n.Value`.
 	case value > n.Value:
 		if n.Right == nil {
-			// A new right child increases the balance of this node by one, making it either 0 or +1.
-			n.bal++
 			n.Right = &Node{Value: value, Data: data}
-			// If there is no left child, the new child node has increased the height of this subtree.
 			if n.Left == nil {
-				return true
+				n.bal = 1
+			} else {
+				n.bal = 0
 			}
-			return false
-		}
-		if n.Right.Insert(value, data, n) {
-			// The right subtree has grown by one. Increase the balance by one.
-			n.bal++
+		} else {
+			if n.Right.Insert(value, data, n) {
+				n.bal++
+			}
 		}
 	}
 	// If rebalancing is required, the method `rebalance()` takes care of all the different rebalancing scenarios.
@@ -280,6 +282,7 @@ func (n *Node) rotateLeft(p *Node) *Node {
 	}
 	// Finally, adjust the balances.
 	if r.bal == 0 { // This case does not apply to inserts, only to deletes, which are not discussed further here.
+		fmt.Println("r.bal == 0 for " + r.Value)
 		n.bal = 1
 		r.bal = -1
 	} else {
@@ -291,7 +294,6 @@ func (n *Node) rotateLeft(p *Node) *Node {
 
 // `rotateRight` is the mirrored version of `rotateLeft`.
 func (n *Node) rotateRight(p *Node) *Node {
-	fmt.Println("rotateRight(" + n.Value + ")")
 	l := n.Left
 	n.Left = l.Right
 	l.Right = n
@@ -314,14 +316,22 @@ func (n *Node) rotateRight(p *Node) *Node {
 
 // `rotateRightLeft` first rotates the right child to the right, then the current node to the left.
 func (n *Node) rotateRightLeft(p *Node) *Node {
+	// `rotateRight` assumes that the left child has a left child, but as part of the rotate-right-left process,
+	// the left child of `n.Right` is a leaf. We therefore have to tweak the balance factors before and after
+	// calling `rotateRight`.
+	// If we did not do that, we would not be able to reuse `rotateRight` and `rotateLeft`.
+	n.Right.Left.bal = 1
 	n.Right.rotateRight(n)
+	n.Right.bal = 1
 	n.rotateLeft(p)
 	return n
 }
 
 // `rotateLeftRight` first rotates the left child to the left, then the current node to the right.
 func (n *Node) rotateLeftRight(p *Node) *Node {
+	n.Left.Right.bal = -1 // The considerations from rotateRightLeft also apply here.
 	n.Left.rotateLeft(n)
+	n.Left.bal = -1
 	n.rotateRight(p)
 	return n
 }
@@ -329,6 +339,7 @@ func (n *Node) rotateLeftRight(p *Node) *Node {
 // `rebalance` brings the tree back into a balanced state.
 func (n *Node) rebalance(p *Node) {
 	fmt.Println("rebalance " + n.Value)
+	n.Dump(0, "")
 	switch {
 	// Left subtree is too high, and left child is left-heavy.
 	case n.bal == -2 && n.Left.bal <= 0:
@@ -363,17 +374,19 @@ func (n *Node) Find(s string) (string, bool) {
 }
 
 // `Dump` dumps the structure of the subtree starting at node `n`, including node search values and balance factors.
-func (n *Node) Dump(i int) {
+// Parameter `i` sets the line indent. `lr` is a prefix denoting the left or the right child, respectively.
+func (n *Node) Dump(i int, lr string) {
 	if n == nil {
 		return
 	}
 	indent := ""
 	if i > 0 {
-		indent = strings.Repeat(" ", (i-1)*4) + "+" + strings.Repeat("-", 3)
+		//indent = strings.Repeat(" ", (i-1)*4) + "+" + strings.Repeat("-", 3)
+		indent = strings.Repeat(" ", (i-1)*4) + "+" + lr + "--"
 	}
 	fmt.Printf("%s%s[%d]\n", indent, n.Value, n.bal)
-	n.Left.Dump(i + 1)
-	n.Right.Dump(i + 1)
+	n.Left.Dump(i+1, "L")
+	n.Right.Dump(i+1, "R")
 }
 
 /*
@@ -419,15 +432,16 @@ func (t *Tree) Traverse(n *Node, f func(*Node)) {
 
 // `Dump` dumps the tree structure.
 func (t *Tree) Dump() {
-	t.Root.Dump(0)
+	t.Root.Dump(0, "")
 }
 
 func main() {
-	values := []string{"d", "b", "g", "c", "e", "a", "h", "f", "i", "j", "l", "k"}
-	data := []string{"delta", "bravo", "golf", "charlie", "echo", "alpha", "hotel", "foxtrot", "india", "juliett", "lima", "kilo"}
+	values := []string{"d", "b", "g", "g", "c", "e", "a", "h", "f", "i", "j", "l", "k"}
+	data := []string{"delta", "bravo", "golang", "golf", "charlie", "echo", "alpha", "hotel", "foxtrot", "india", "juliett", "lima", "kilo"}
 
 	tree := &Tree{}
 	for i := 0; i < len(values); i++ {
+		fmt.Println("Insert " + values[i] + ": " + data[i])
 		tree.Insert(values[i], data[i])
 		tree.Dump()
 		fmt.Println()
