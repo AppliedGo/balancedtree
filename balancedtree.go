@@ -165,9 +165,11 @@ Now, after all this theory, let's see how to add the balancing into the code fro
 
 First, we set up two helper functions, `min` and `max`, that we will need later.
 
+
+### Imports, helper functions, and globals
 */
 
-// ### Imports, helper functions, and globals
+//
 package main
 
 import (
@@ -200,7 +202,8 @@ type Node struct {
 	bal   int // height(n.Right) - height(n.Left)
 }
 
-// ### The modified `Insert` function
+/* ### The modified `Insert` function
+ */
 
 // `Insert` takes a search value and some data and inserts a new node (unless a node with the given
 // search value already exists, in which case `Insert` only replaces the data).
@@ -237,12 +240,12 @@ func (n *Node) Insert(value, data string) bool {
 				if n.Left.bal < -1 || n.Left.bal > 1 {
 					n.rebalance(n.Left)
 				} else {
-					// If no rebalancing occurred, the left subtree has grown by one: Decrease the balance by one.
+					// If no rebalancing occurred, the left subtree has grown by one: Decrease the balance of the current node by one.
 					n.bal--
 				}
 			}
 		}
-	// This case is analogous to `value < n.Value`.
+	// This case is analogous to `value < n.Value`, except that everything is mirrored.
 	case value > n.Value:
 		if n.Right == nil {
 			n.Right = &Node{Value: value, Data: data}
@@ -268,9 +271,10 @@ func (n *Node) Insert(value, data string) bool {
 	return false
 }
 
-// ### The new `rebalance()` method and its helpers `rotateLeft()`, `rotateRight()`, `rotateLeftRight()`, and `rotateRightLeft`.
-//
-// **Important note: Many of the assumptions about balances, left and right children, etc, as well as much of the logic usde in the functions below, apply to the `Insert` operation only. For `Delete` operations, different rules and operations apply.** As noted earlier, this article focuses on `Insert` only, to keep the code short and clear.
+/* ### The new `rebalance()` method and its helpers `rotateLeft()`, `rotateRight()`, `rotateLeftRight()`, and `rotateRightLeft`.
+
+ **Important note: Many of the assumptions about balances, left and right children, etc, as well as much of the logic usde in the functions below, apply to the `Insert` operation only. For `Delete` operations, different rules and operations apply.** As noted earlier, this article focuses on `Insert` only, to keep the code short and clear.
+ */
 
 // `rotateLeft` takes a child node and rotates the child node's subtree to the left.
 func (n *Node) rotateLeft(c *Node) {
@@ -383,7 +387,11 @@ func (n *Node) Dump(i int, lr string) {
 /*
 ## Tree
 
-The Tree type is largely unchanged, except that `Delete` is gone and a new method, `Dump`, exist for invoking `Node.Dump`.
+Changes to the Tree type:
+
+* `Insert` now takes care of rebalancing the root node if necessary.
+* A new method, `Dump`, exist for invoking `Node.Dump`.
+* `Delete` is gone.
 
 */
 
@@ -404,7 +412,7 @@ func (t *Tree) Insert(value, data string) {
 	}
 }
 
-// `Node´'s `rebalance` method is invoked from the parent node of the node that needs rebalancing.
+// `Node`'s `rebalance` method is invoked from the parent node of the node that needs rebalancing.
 // However, the root node of a tree has no parent node.
 // Therefore, `Tree`'s `rebalance` method creates a fake parent node for rebalancing the root node.
 func (t *Tree) rebalance() {
@@ -492,26 +500,17 @@ go build
 ./balancedtree
 ```
 
-## Odds and ends
+## Conclusion
 
-Some questions may have occurred to you while studying the code. Here are some answers.
+Keeping a binary search tree in balance is a bit more involved as it might seem at first. In this article, I have broken down the rebalancing to the bare minimum by removing the `Delete` operation entirely. If you want to dig deeper, here are a couple of useful readings:
 
+[Wikipedia on Tree Rotation](https://en.wikipedia.org/wiki/Tree_rotation): Richly illustrated, concise discussion of the rotation process.
 
-### Where is Delete?
+[German Wikipedia on AVL Trees](https://de.wikipedia.org/wiki/AVL-Baum): Sorry, this is German only, but when you scroll down to section 4, "Rebalancierung", there are a couple of detailed diagrams on single and double rotation. Here you can see how the subtree heights change after each rotation.
 
-For the sake of brevity, I omitted the Delete operation. Deleting is a bit more involved than inserting, and I thought I leave this part as an exercise to the reader.
-
-
-### Why does the unbalanced node not rebalance itself?
-
-As you have seen in the code, when a node is out of balance after an `Insert`, it does not do the rebalancing by itself but rather passes this duty on to its parent node. You might have seen other tutorials or sample code that don't do that. In most cases, they add a field to each node that points to the node's parent. This is a valid option but this comes with (slightly) increased memory usage and the need of maintaining the parent pointer during any tree operation. I felt that this is not worth the effort when the parent pointer is only used for the sole purpose of rebalancing. YMMV.
+[GitHub search for Go AVL libs](https://github.com/search?o=desc&q=language%3Ago+avl&s=stars&type=Repositories&utf8=%E2%9C%93): For advanced study :)
 
 
-### The fake parent node
-
-If the tree must be rotated at the root, there is no parent node (of type Node) available. To hide this fact from the rotation operations (and therefore to avoid having to introduce a special case that the rotation methods have to take care of), I decided to have `Tree`'s `rebalance` method create a "fake" parent node for the root node. This might look like a hack but It Works For Me(TM).
-
-
-
+That's it. Happy tree planting!
 
 */
