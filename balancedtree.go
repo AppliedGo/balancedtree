@@ -500,6 +500,8 @@ go build
 ./balancedtree
 ```
 
+The code is also available on the [Go Playground](https://play.golang.org/p/dd1Z9U90JJ). (Subject to availabilty of the Playground service.)
+
 ## Conclusion
 
 Keeping a binary search tree in balance is a bit more involved as it might seem at first. In this article, I have broken down the rebalancing to the bare minimum by removing the `Delete` operation entirely. If you want to dig deeper, here are a couple of useful readings:
