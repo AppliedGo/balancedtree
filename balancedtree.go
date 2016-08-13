@@ -223,7 +223,7 @@ func (n *Node) Insert(value, data string) bool {
 			n.Left = &Node{Value: value, Data: data}
 			// If there is no right child, the new child node has increased the height of this subtree.
 			if n.Right == nil {
-				// There is only a left child (the new one).
+				// The new left child is the only child.
 				n.bal = -1
 			} else {
 				// There is a left and a right child. The right child cannot have children;
@@ -233,12 +233,13 @@ func (n *Node) Insert(value, data string) bool {
 		} else {
 			// The left child is not nil. Continue in the left subtree.
 			if n.Left.Insert(value, data) {
-				// The left subtree has grown by one: Decrease the balance by one.
-				n.bal--
-			}
-			// If the subtree's balance factor has become either -2 or 2, the subtree must be rebalanced.
-			if n.Left.bal < -1 || n.Left.bal > 1 {
-				n.Left.rebalance(n)
+				// If the subtree's balance factor has become either -2 or 2, the subtree must be rebalanced.
+				if n.Left.bal < -1 || n.Left.bal > 1 {
+					n.rebalance(n.Left)
+				} else {
+					// If no rebalancing occurred, the left subtree has grown by one: Decrease the balance by one.
+					n.bal--
+				}
 			}
 		}
 	// This case is analogous to `value < n.Value`.
@@ -252,10 +253,11 @@ func (n *Node) Insert(value, data string) bool {
 			}
 		} else {
 			if n.Right.Insert(value, data) {
-				n.bal++
-			}
-			if n.Right.bal < -1 || n.Right.bal > 1 {
-				n.Right.rebalance(n)
+				if n.Right.bal < -1 || n.Right.bal > 1 {
+					n.rebalance(n.Right)
+				} else {
+					n.bal++
+				}
 			}
 		}
 	}
@@ -267,86 +269,81 @@ func (n *Node) Insert(value, data string) bool {
 }
 
 // ### The new `rebalance()` method and its helpers `rotateLeft()`, `rotateRight()`, `rotateLeftRight()`, and `rotateRightLeft`.
+//
+// **Important note: Many of the assumptions about balances, left and right children, etc, as well as much of the logic usde in the functions below, apply to the `Insert` operation only. For `Delete` operations, different rules and operations apply.** As noted earlier, this article focuses on `Insert` only, to keep the code short and clear.
 
-// `rotateLeft` takes a parent node and rotates the current node's subtree to the left.
-func (n *Node) rotateLeft(p *Node) *Node {
-	fmt.Println("rotateLeft(" + n.Value + ")")
-	// Save `n`'s right child.
-	r := n.Right
-	// `r`'s right subtree gets reassigned to `n`.
-	n.Right = r.Left
-	// `n` becomes the left child of `r`.
-	r.Left = n
-	// Make the parent node point to the new root node.
-	if p != nil {
-		if n == p.Left {
-			p.Left = r
-		} else {
-			p.Right = r
-		}
+// `rotateLeft` takes a child node and rotates the child node's subtree to the left.
+func (n *Node) rotateLeft(c *Node) {
+	fmt.Println("rotateLeft " + c.Value)
+	// Save `c`'s right child.
+	r := c.Right
+	// `r`'s left subtree gets reassigned to `c`.
+	c.Right = r.Left
+	// `c` becomes the left child of `r`.
+	r.Left = c
+	// Make the parent node (that is, the current one) point to the new root node.
+	if c == n.Left {
+		n.Left = r
+	} else {
+		n.Right = r
 	}
-	// Finally, adjust the balances. After a single rotation, the subtrees are always of the same height. (Note: this applies to `Insert` operations only.)
-	n.bal = 0
+	// Finally, adjust the balances. After a single rotation, the subtrees are always of the same height.
+	c.bal = 0
 	r.bal = 0
-	return r
 }
 
 // `rotateRight` is the mirrored version of `rotateLeft`.
-func (n *Node) rotateRight(p *Node) *Node {
-	l := n.Left
-	n.Left = l.Right
-	l.Right = n
-	if p != nil {
-		if n == p.Left {
-			p.Left = l
-		} else {
-			p.Right = l
-		}
+func (n *Node) rotateRight(c *Node) {
+	fmt.Println("rotateRight " + c.Value)
+	l := c.Left
+	c.Left = l.Right
+	l.Right = c
+	if c == n.Left {
+		n.Left = l
+	} else {
+		n.Right = l
 	}
-	n.bal = 0
+	c.bal = 0
 	l.bal = 0
-	return l
 }
 
-// `rotateRightLeft` first rotates the right child to the right, then the current node to the left.
-func (n *Node) rotateRightLeft(p *Node) *Node {
+// `rotateRightLeft` first rotates the right child of `c` to the right, then `c` to the left.
+func (n *Node) rotateRightLeft(c *Node) {
 	// `rotateRight` assumes that the left child has a left child, but as part of the rotate-right-left process,
-	// the left child of `n.Right` is a leaf. We therefore have to tweak the balance factors before and after
+	// the left child of `c.Right` is a leaf. We therefore have to tweak the balance factors before and after
 	// calling `rotateRight`.
 	// If we did not do that, we would not be able to reuse `rotateRight` and `rotateLeft`.
-	n.Right.Left.bal = 1
-	n.Right.rotateRight(n)
-	n.Right.bal = 1
-	n.rotateLeft(p)
-	return n
+	c.Right.Left.bal = 1
+	c.rotateRight(c.Right)
+	c.Right.bal = 1
+	n.rotateLeft(c)
 }
 
-// `rotateLeftRight` first rotates the left child to the left, then the current node to the right.
-func (n *Node) rotateLeftRight(p *Node) *Node {
-	n.Left.Right.bal = -1 // The considerations from rotateRightLeft also apply here.
-	n.Left.rotateLeft(n)
-	n.Left.bal = -1
-	n.rotateRight(p)
-	return n
+// `rotateLeftRight` first rotates the left child of `c` to the left, then `c` to the right.
+func (n *Node) rotateLeftRight(c *Node) {
+	c.Left.Right.bal = -1 // The considerations from rotateRightLeft also apply here.
+	c.rotateLeft(c.Left)
+	c.Left.bal = -1
+	n.rotateRight(c)
 }
 
-// `rebalance` brings the tree back into a balanced state.
-func (n *Node) rebalance(p *Node) {
-	fmt.Println("rebalance " + n.Value)
-	n.Dump(0, "")
+// `rebalance` brings the (sub-)tree with root node `c` back into a balanced state.
+func (n *Node) rebalance(c *Node) {
+	fmt.Println("rebalance " + c.Value)
+	c.Dump(0, "")
 	switch {
-	// Left subtree is too high, and left child is left-heavy.
-	case n.bal == -2 && n.Left.bal <= 0:
-		n.rotateRight(p)
-	// Right subtree is too high, and right child is right-heavy.
-	case n.bal == 2 && n.Right.bal >= 0:
-		n.rotateLeft(p)
-	// Left subtree is too high, and left child is right-heavy.
-	case n.bal == -2 && n.Left.bal == 1:
-		n.rotateLeftRight(p)
-	// Right subtree is too high, and right child is left-heavy.
-	case n.bal == 2 && n.Right.bal == -1:
-		n.rotateRightLeft(p)
+	// Left subtree is too high, and left child has a left child.
+	case c.bal == -2 && c.Left.bal == -1:
+		n.rotateRight(c)
+	// Right subtree is too high, and right child has a right child.
+	case c.bal == 2 && c.Right.bal == 1:
+		n.rotateLeft(c)
+	// Left subtree is too high, and left child has a right child.
+	case c.bal == -2 && c.Left.bal == 1:
+		n.rotateLeftRight(c)
+	// Right subtree is too high, and right child has a left child.
+	case c.bal == 2 && c.Right.bal == -1:
+		n.rotateRightLeft(c)
 	}
 }
 
@@ -407,11 +404,14 @@ func (t *Tree) Insert(value, data string) {
 	}
 }
 
-// `Tree`'s `rebalance` method creates a fake parent node so that `Node´'s `rebalance`
-// does not have to care about the fact that the root node has no parent.
+// `Node´'s `rebalance` method is invoked from the parent node of the node that needs rebalancing.
+// However, the root node of a tree has no parent node.
+// Therefore, `Tree`'s `rebalance` method creates a fake parent node for rebalancing the root node.
 func (t *Tree) rebalance() {
-	fakeParent := &Node{Left: t.Root}
+	fakeParent := &Node{Left: t.Root, Value: "fakeParent"}
 	fakeParent.rebalance(t.Root)
+	// Fetch the new root node from the fake parent node
+	t.Root = fakeParent.Left
 }
 
 func (t *Tree) Find(s string) (string, bool) {
