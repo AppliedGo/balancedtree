@@ -30,6 +30,11 @@ Only a well-balanced search tree can provide optimal search performance. This ar
 
 <!--more-->
 
+> Get the Balance Right!
+>
+> ~ Depeche Mode
+
+
 ## How a tree can get out of balance
 
 As we have seen in last week's article, search performance is best if the tree's height is small. Unfortunately, without any further measure, our simple binary search tree can quickly get out of shape - or never reach a good shape in the first place.
@@ -200,14 +205,11 @@ type Node struct {
 // `Insert` takes a search value and some data and inserts a new node (unless a node with the given
 // search value already exists, in which case `Insert` only replaces the data).
 //
-// The third parameter, `p`, is the node's parent node. It is only required for rebalancing.
-// Without this parameter, each node would need to store and maintain a pointer to its parent.
-//
 // It returns:
 //
 // * `true` if the height of the tree has increased.
 // * `false` otherwise.
-func (n *Node) Insert(value, data string, p *Node) bool {
+func (n *Node) Insert(value, data string) bool {
 	// The following actions depend on whether the new search value is equal, less, or greater than
 	// the current node's search value.
 	switch {
@@ -230,9 +232,13 @@ func (n *Node) Insert(value, data string, p *Node) bool {
 			}
 		} else {
 			// The left child is not nil. Continue in the left subtree.
-			if n.Left.Insert(value, data, n) {
+			if n.Left.Insert(value, data) {
 				// The left subtree has grown by one: Decrease the balance by one.
 				n.bal--
+			}
+			// If the subtree's balance factor has become either -2 or 2, the subtree must be rebalanced.
+			if n.Left.bal < -1 || n.Left.bal > 1 {
+				n.Left.rebalance(n)
 			}
 		}
 	// This case is analogous to `value < n.Value`.
@@ -245,14 +251,13 @@ func (n *Node) Insert(value, data string, p *Node) bool {
 				n.bal = 0
 			}
 		} else {
-			if n.Right.Insert(value, data, n) {
+			if n.Right.Insert(value, data) {
 				n.bal++
 			}
+			if n.Right.bal < -1 || n.Right.bal > 1 {
+				n.Right.rebalance(n)
+			}
 		}
-	}
-	// If rebalancing is required, the method `rebalance()` takes care of all the different rebalancing scenarios.
-	if n.bal < -1 || n.bal > 1 {
-		n.rebalance(p)
 	}
 	if n.bal != 0 {
 		return true
@@ -395,12 +400,18 @@ func (t *Tree) Insert(value, data string) {
 		t.Root = &Node{Value: value, Data: data}
 		return
 	}
-	// In case of a tree rotation, the root node might change; hence we create a "fake" parent node
-	// for t.Root, so if t.Root chnanges, we can fetch the new root from the fake parent and assign
-	// it back to t.Root.
-	tempParent := &Node{Left: t.Root, Right: nil}
-	t.Root.Insert(value, data, tempParent)
-	t.Root = tempParent.Left
+	t.Root.Insert(value, data)
+	// If the root node gets out of balance,
+	if t.Root.bal < -1 || t.Root.bal > 1 {
+		t.rebalance()
+	}
+}
+
+// `Tree`'s `rebalance` method creates a fake parent node so that `Node´'s `rebalance`
+// does not have to care about the fact that the root node has no parent.
+func (t *Tree) rebalance() {
+	fakeParent := &Node{Left: t.Root}
+	fakeParent.rebalance(t.Root)
 }
 
 func (t *Tree) Find(s string) (string, bool) {
@@ -424,7 +435,36 @@ func (t *Tree) Dump() {
 	t.Root.Dump(0, "")
 }
 
+/*
+### A demo
+
+Using the `Dump` method plus some `fmt.Print...` statements at relevant places, we can watch the code how it inserts new values, rebalancing the subtrees where necessary.
+
+The output of the final `Dump` call should look like this:
+
+```
+g[1]
++L--d[0]
+    +L--b[0]
+        +L--a[0]
+        +R--c[0]
+    +R--e[1]
+        +R--f[0]
++R--i[1]
+    +L--h[0]
+    +R--k[0]
+        +L--j[0]
+        +R--l[0]
+```
+
+The small letters are the search values. "L" and "R" denote if the child node is a left or a right child. The number in brackets is the balance factor.
+
+If everything works correctly, the `Traverse` method should finally print out the nodes in alphabetical sort order.
+*/
+
+//
 func main() {
+	// The values are sorted in a way that causes two single rotations and a double rotation.
 	values := []string{"d", "b", "g", "g", "c", "e", "a", "h", "f", "i", "j", "l", "k"}
 	data := []string{"delta", "bravo", "golang", "golf", "charlie", "echo", "alpha", "hotel", "foxtrot", "india", "juliett", "lima", "kilo"}
 
@@ -443,7 +483,7 @@ func main() {
 }
 
 /*
-As always, the code is available on GitHub. Using `-d` on `go get` avoids installing the binary into $GOPATH/bin.
+As always, the code is available on GitHub. Using the `-d` flag with `go get` to avoid that the binary gets auto-installed into $GOPATH/bin.
 
 ```sh
 go get -d github.com/appliedgo/balancedtree
@@ -452,9 +492,26 @@ go build
 ./balancedtree
 ```
 
-## Conclusion
+## Odds and ends
 
-For the sake of brevity, I omitted the Delete operation. Deleting is a bit more involved than inserting
+Some questions may have occurred to you while studying the code. Here are some answers.
+
+
+### Where is Delete?
+
+For the sake of brevity, I omitted the Delete operation. Deleting is a bit more involved than inserting, and I thought I leave this part as an exercise to the reader.
+
+
+### Why does the unbalanced node not rebalance itself?
+
+As you have seen in the code, when a node is out of balance after an `Insert`, it does not do the rebalancing by itself but rather passes this duty on to its parent node. You might have seen other tutorials or sample code that don't do that. In most cases, they add a field to each node that points to the node's parent. This is a valid option but this comes with (slightly) increased memory usage and the need of maintaining the parent pointer during any tree operation. I felt that this is not worth the effort when the parent pointer is only used for the sole purpose of rebalancing. YMMV.
+
+
+### The fake parent node
+
+If the tree must be rotated at the root, there is no parent node (of type Node) available. To hide this fact from the rotation operations (and therefore to avoid having to introduce a special case that the rotation methods have to take care of), I decided to have `Tree`'s `rebalance` method create a "fake" parent node for the root node. This might look like a hack but It Works For Me(TM).
+
+
 
 
 */
