@@ -21,7 +21,7 @@ author = "Christoph Berger"
 email = "chris@appliedgo.net"
 date = "2016-08-13"
 publishdate = "2016-08-13"
-domains = ["Algorithms And Data Strucutures"]
+domains = ["Algorithms And Data Structures"]
 tags = ["Tree", "Balanced Tree", "Binary Tree", "Search Tree"]
 categories = ["Tutorial"]
 +++
