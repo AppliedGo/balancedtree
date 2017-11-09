@@ -114,7 +114,7 @@ HYPE[Balance Factors](BalanceFactors.html)
 
 ### Removing the imbalance
 
-Let's assume a node `n`that has one left child and no right child. `n`'s left child has no children; otherwise, the tree at node `n` would already be out of balance. (The following considerations also apply to inserting below the *right* child in a mirror-reversed way, so we can focus on the left-child scenario here.)
+Let's assume a node `n` that has one left child and no right child. `n`'s left child has no children; otherwise, the tree at node `n` would already be out of balance. (The following considerations also apply to inserting below the *right* child in a mirror-reversed way, so we can focus on the left-child scenario here.)
 
 Now let's insert a new node below the left child of `n`.
 
