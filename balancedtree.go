@@ -416,6 +416,10 @@ func (t *Tree) Insert(value, data string) {
 // However, the root node of a tree has no parent node.
 // Therefore, `Tree`'s `rebalance` method creates a fake parent node for rebalancing the root node.
 func (t *Tree) rebalance() {
+	if t == nil || t.Root == nil {
+		// Nothing to balance here.
+		return
+	}
 	fakeParent := &Node{Left: t.Root, Value: "fakeParent"}
 	fakeParent.rebalance(t.Root)
 	// Fetch the new root node from the fake parent node
