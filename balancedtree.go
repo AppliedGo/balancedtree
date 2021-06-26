@@ -21,9 +21,9 @@ author = "Christoph Berger"
 email = "chris@appliedgo.net"
 date = "2016-08-13"
 publishdate = "2016-08-13"
-domains = ["Algorithms And Data Structures"]
+categories = ["Algorithms And Data Structures"]
 tags = ["Tree", "Balanced Tree", "Binary Tree", "Search Tree"]
-categories = ["Tutorial"]
+articletypes = ["Tutorial"]
 +++
 
 Only a well-balanced search tree can provide optimal search performance. This article adds automatic balancing to the binary search tree from the previous article.
@@ -151,7 +151,7 @@ Now try the second button, "Double Rotation". Here, the unbalanced node's left s
 
 #### Two more cases and a summary
 
-The two cases above assumed that the unbalanced node's balance factor is -2. If the balance factor is +2, the same cases apply in an analogous way, except that everything is mirror-reversed.
+The two cases above assumed that the unbalanced node's balance factor is -2. If the balance factor is +2, the same two cases apply in an analogous way, except that everything is mirror-reversed.
 
 
 To summarize, here is a scenario where all of the above is included - double rotation as well as reassigning a child node/tree to a rotated node.
@@ -193,13 +193,32 @@ func max(a, b int) int {
 	return b
 }
 
-// `Node` gets a new field, `bal`, to store the height difference between the node's subtrees.
+// `Node` gets a new field, `height`, to store the height of the subtree at this node.
 type Node struct {
-	Value string
-	Data  string
-	Left  *Node
-	Right *Node
-	bal   int // height(n.Right) - height(n.Left)
+	Value  string
+	Data   string
+	Left   *Node
+	Right  *Node
+	height int
+	// TODO bal   int // height(n.Right) - height(n.Left)
+}
+
+// Height returns the height value. Wait, what's the point?
+// Well, the zero value of `*Node` is `nil`. If a child node is `nil`, there is no `height`field available; however, it is possible to call a method of a `nil` struct value!
+// As a Go proverb says, "Make the zero value useful".
+func (n *Node) Height() int {
+	if n == nil {
+		return 0
+	}
+	return n.height
+}
+
+// Bal returns the balance of a node's subtrees:
+// 0 for a balanced node,
+// +n if the right subtree is n nodes taller than the left,
+// -n if the left subtree is n nodes taller than the right.
+func (n *Node) Bal() int {
+	return n.Right.Height() - n.Left.Height()
 }
 
 /* ### The modified `Insert` function
@@ -212,63 +231,42 @@ type Node struct {
 //
 // * `true` if the height of the tree has increased.
 // * `false` otherwise.
-func (n *Node) Insert(value, data string) bool {
-	// The following actions depend on whether the new search value is equal, less, or greater than
-	// the current node's search value.
-	switch {
-	case value == n.Value:
+
+func (n *Node) Insert(value, data string) *Node {
+	// The node does not exist yet. Create a new one, fill in the data,
+	// and return the new node.
+	if n == nil {
+		return &Node{
+			Value:  value,
+			Data:   data,
+			height: 1,
+		}
+	}
+	// The node already exists: update the data and all is good.
+	// Actually, this is Upsert semantics. ("Upsert" is a coinage made from "Update or Insert".)
+	// Alternatively, Insert could return an error here, and an extra
+	// Update method would be required for updating existing data.
+	if n.Value == value {
 		n.Data = data
-		return false // Node already exists, nothing changes
-	case value < n.Value:
-		// If there is no left child, create a new one.
-		if n.Left == nil {
-			// Create a new node.
-			n.Left = &Node{Value: value, Data: data}
-			// If there is no right child, the new child node has increased the height of this subtree.
-			if n.Right == nil {
-				// The new left child is the only child.
-				n.bal = -1
-			} else {
-				// There is a left and a right child. The right child cannot have children;
-				// otherwise the tree would already have been out of balance at `n`.
-				n.bal = 0
-			}
-		} else {
-			// The left child is not nil. Continue in the left subtree.
-			if n.Left.Insert(value, data) {
-				// If the subtree's balance factor has become either -2 or 2, the subtree must be rebalanced.
-				if n.Left.bal < -1 || n.Left.bal > 1 {
-					n.rebalance(n.Left)
-				} else {
-					// If no rebalancing occurred, the left subtree has grown by one: Decrease the balance of the current node by one.
-					n.bal--
-				}
-			}
-		}
-	// This case is analogous to `value < n.Value`, except that everything is mirrored.
-	case value > n.Value:
-		if n.Right == nil {
-			n.Right = &Node{Value: value, Data: data}
-			if n.Left == nil {
-				n.bal = 1
-			} else {
-				n.bal = 0
-			}
-		} else {
-			if n.Right.Insert(value, data) {
-				if n.Right.bal < -1 || n.Right.bal > 1 {
-					n.rebalance(n.Right)
-				} else {
-					n.bal++
-				}
-			}
-		}
+		return n
 	}
-	if n.bal != 0 {
-		return true
+
+	if value < n.Value {
+		// The new value is smaller than the current node's value,
+		// hence insert it into the left subtree.
+		n.Left = n.Left.Insert(value, data)
+	} else {
+		// Larger values are inserted into the right subtree.
+		n.Right = n.Right.Insert(value, data)
 	}
-	// No more adjustments to the ancestor nodes required.
-	return false
+
+	// At this point, one of the subtrees might have grown by one.
+	// The current node's height thus needs to be re-calculated.
+
+	n.height = max(n.Left.Height(), n.Right.Height()) + 1
+
+	// Also, the subtree at node `n` might be out of balance.
+	return n.rebalance()
 }
 
 /* ### The new `rebalance()` method and its helpers `rotateLeft()`, `rotateRight()`, `rotateLeftRight()`, and `rotateRightLeft`.
@@ -276,79 +274,68 @@ func (n *Node) Insert(value, data string) bool {
  **Important note: Many of the assumptions about balances, left and right children, etc, as well as much of the logic usde in the functions below, apply to the `Insert` operation only. For `Delete` operations, different rules and operations apply.** As noted earlier, this article focuses on `Insert` only, to keep the code short and clear.
  */
 
-// `rotateLeft` takes a child node and rotates the child node's subtree to the left.
-func (n *Node) rotateLeft(c *Node) {
-	fmt.Println("rotateLeft " + c.Value)
-	// Save `c`'s right child.
-	r := c.Right
-	// `r`'s left subtree gets reassigned to `c`.
-	c.Right = r.Left
-	// `c` becomes the left child of `r`.
-	r.Left = c
-	// Make the parent node (that is, the current one) point to the new root node.
-	if c == n.Left {
-		n.Left = r
-	} else {
-		n.Right = r
-	}
-	// Finally, adjust the balances. After a single rotation, the subtrees are always of the same height.
-	c.bal = 0
-	r.bal = 0
+// `rotateLeft` rotates the node to the left.
+func (n *Node) rotateLeft() *Node {
+	fmt.Println("rotateLeft " + n.Value)
+	// Save `n`'s right child in `r`.
+	r := n.Right
+	// Move `r`'s right subtree to the left of n.
+	n.Right = r.Left
+	// Then, make `n` the left child of `r`.
+	r.Left = n
+	// Finally, re-calculate the heights of n and r.
+	n.height = max(n.Left.Height(), n.Right.Height()) + 1
+	r.height = max(r.Left.Height(), r.Right.Height()) + 1
+	// Return the new top node of this part of the tree.
+	return r
 }
 
 // `rotateRight` is the mirrored version of `rotateLeft`.
-func (n *Node) rotateRight(c *Node) {
-	fmt.Println("rotateRight " + c.Value)
-	l := c.Left
-	c.Left = l.Right
-	l.Right = c
-	if c == n.Left {
-		n.Left = l
-	} else {
-		n.Right = l
-	}
-	c.bal = 0
-	l.bal = 0
+func (n *Node) rotateRight() *Node {
+	fmt.Println("rotateRight " + n.Value)
+	l := n.Left
+	n.Left = l.Right
+	l.Right = n
+	n.height = max(n.Left.Height(), n.Right.Height()) + 1
+	l.height = max(l.Left.Height(), l.Right.Height()) + 1
+	return l
 }
 
 // `rotateRightLeft` first rotates the right child of `c` to the right, then `c` to the left.
-func (n *Node) rotateRightLeft(c *Node) {
-	// `rotateRight` assumes that the left child has a left child, but as part of the rotate-right-left process,
-	// the left child of `c.Right` is a leaf. We therefore have to tweak the balance factors before and after
-	// calling `rotateRight`.
-	// If we did not do that, we would not be able to reuse `rotateRight` and `rotateLeft`.
-	c.Right.Left.bal = 1
-	c.rotateRight(c.Right)
-	c.Right.bal = 1
-	n.rotateLeft(c)
+func (n *Node) rotateRightLeft() *Node {
+	n.Right = n.Right.rotateRight()
+	n = n.rotateLeft()
+	n.height = max(n.Left.Height(), n.Right.Height()) + 1
+	return n
 }
 
 // `rotateLeftRight` first rotates the left child of `c` to the left, then `c` to the right.
-func (n *Node) rotateLeftRight(c *Node) {
-	c.Left.Right.bal = -1 // The considerations from rotateRightLeft also apply here.
-	c.rotateLeft(c.Left)
-	c.Left.bal = -1
-	n.rotateRight(c)
+func (n *Node) rotateLeftRight() *Node {
+	n.Left = n.Left.rotateLeft()
+	n = n.rotateRight()
+	n.height = max(n.Left.Height(), n.Right.Height()) + 1
+	return n
 }
 
 // `rebalance` brings the (sub-)tree with root node `c` back into a balanced state.
-func (n *Node) rebalance(c *Node) {
-	fmt.Println("rebalance " + c.Value)
-	c.Dump(0, "")
+func (n *Node) rebalance() *Node {
+	fmt.Println("rebalance " + n.Value)
+	n.Dump(0, "")
 	switch {
 	// Left subtree is too high, and left child has a left child.
-	case c.bal == -2 && c.Left.bal == -1:
-		n.rotateRight(c)
+	case n.Bal() < -1 && n.Left.Bal() == -1:
+		return n.rotateRight()
 	// Right subtree is too high, and right child has a right child.
-	case c.bal == 2 && c.Right.bal == 1:
-		n.rotateLeft(c)
+	case n.Bal() > 1 && n.Right.Bal() == 1:
+		return n.rotateLeft()
 	// Left subtree is too high, and left child has a right child.
-	case c.bal == -2 && c.Left.bal == 1:
-		n.rotateLeftRight(c)
+	case n.Bal() < -1 && n.Left.Bal() == 1:
+		return n.rotateLeftRight()
 	// Right subtree is too high, and right child has a left child.
-	case c.bal == 2 && c.Right.bal == -1:
-		n.rotateRightLeft(c)
+	case n.Bal() > 1 && n.Right.Bal() == -1:
+		return n.rotateRightLeft()
 	}
+	return n
 }
 
 // `Find` stays the same as in the previous article.
@@ -379,7 +366,7 @@ func (n *Node) Dump(i int, lr string) {
 		//indent = strings.Repeat(" ", (i-1)*4) + "+" + strings.Repeat("-", 3)
 		indent = strings.Repeat(" ", (i-1)*4) + "+" + lr + "--"
 	}
-	fmt.Printf("%s%s[%d]\n", indent, n.Value, n.bal)
+	fmt.Printf("%s%s[%d]\n", indent, n.Value, n.Bal())
 	n.Left.Dump(i+1, "L")
 	n.Right.Dump(i+1, "R")
 }
@@ -401,13 +388,9 @@ type Tree struct {
 }
 
 func (t *Tree) Insert(value, data string) {
-	if t.Root == nil {
-		t.Root = &Node{Value: value, Data: data}
-		return
-	}
-	t.Root.Insert(value, data)
+	t.Root = t.Root.Insert(value, data)
 	// If the root node gets out of balance,
-	if t.Root.bal < -1 || t.Root.bal > 1 {
+	if t.Root.Bal() < -1 || t.Root.Bal() > 1 {
 		t.rebalance()
 	}
 }
@@ -420,12 +403,10 @@ func (t *Tree) rebalance() {
 		// Nothing to balance here.
 		return
 	}
-	fakeParent := &Node{Left: t.Root, Value: "fakeParent"}
-	fakeParent.rebalance(t.Root)
-	// Fetch the new root node from the fake parent node
-	t.Root = fakeParent.Left
+	t.Root = t.Root.rebalance()
 }
 
+// Find receives a value s and returns true if t contains s.
 func (t *Tree) Find(s string) (string, bool) {
 	if t.Root == nil {
 		return "", false
@@ -433,6 +414,7 @@ func (t *Tree) Find(s string) (string, bool) {
 	return t.Root.Find(s)
 }
 
+// Traverse traverses the tree t depth-first and executes f on each node.
 func (t *Tree) Traverse(n *Node, f func(*Node)) {
 	if n == nil {
 		return
@@ -440,6 +422,23 @@ func (t *Tree) Traverse(n *Node, f func(*Node)) {
 	t.Traverse(n.Left, f)
 	f(n)
 	t.Traverse(n.Right, f)
+}
+
+// PrettyPrint prints the tree at a 90° angle,
+// with the root to the left and the leaves to the right.
+func (t *Tree) PrettyPrint() {
+	var walk func(*Node, func(*Node))
+	walk = func(n *Node, print func(n *Node)) {
+		if n == nil {
+			return
+		}
+		walk(n.Right, print)
+		print(n)
+		walk(n.Left, print)
+	}
+	walk(t.Root, func(n *Node) {
+		fmt.Printf("%s%s\n", strings.Repeat("  ", n.Height()-1), n.Value)
+	})
 }
 
 // `Dump` dumps the tree structure.
@@ -492,6 +491,7 @@ func main() {
 	tree.Traverse(tree.Root, func(n *Node) { fmt.Print(n.Value, ": ", n.Data, " | ") })
 	fmt.Println()
 
+	tree.PrettyPrint()
 }
 
 /*
@@ -518,5 +518,11 @@ Keeping a binary search tree in balance is a bit more involved as it might seem 
 
 
 That's it. Happy tree planting!
+
+___
+
+Changelog
+
+2021-06-18 fix issue #2 and streamline the code
 
 */
