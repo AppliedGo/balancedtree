@@ -200,7 +200,6 @@ type Node struct {
 	Left   *Node
 	Right  *Node
 	height int
-	// TODO bal   int // height(n.Right) - height(n.Left)
 }
 
 // Height returns the height value. Wait, what's the point?
@@ -366,7 +365,7 @@ func (n *Node) Dump(i int, lr string) {
 		//indent = strings.Repeat(" ", (i-1)*4) + "+" + strings.Repeat("-", 3)
 		indent = strings.Repeat(" ", (i-1)*4) + "+" + lr + "--"
 	}
-	fmt.Printf("%s%s[%d]\n", indent, n.Value, n.Bal())
+	fmt.Printf("%s%s[%d,%d]\n", indent, n.Value, n.Bal(), n.Height())
 	n.Left.Dump(i+1, "L")
 	n.Right.Dump(i+1, "R")
 }
@@ -426,19 +425,29 @@ func (t *Tree) Traverse(n *Node, f func(*Node)) {
 
 // PrettyPrint prints the tree at a 90° angle,
 // with the root to the left and the leaves to the right.
+// This function is very simplistic and works only well
+// for single-character values. Otherwise we would need to
+// know the maximum length of all values of a given tree level
+// in advance, in order to format the tree properly.
 func (t *Tree) PrettyPrint() {
-	var walk func(*Node, func(*Node))
-	walk = func(n *Node, print func(n *Node)) {
+
+	printNode := func(n *Node, depth int) {
+		fmt.Printf("%s%s\n", strings.Repeat("  ", depth), n.Value)
+	}
+
+	// `walk` has to be declared explicitly. Otherwise the recursive
+	// `walk()` calls inside `walk` would not compile.
+	var walk func(*Node, int)
+	walk = func(n *Node, depth int) {
 		if n == nil {
 			return
 		}
-		walk(n.Right, print)
-		print(n)
-		walk(n.Left, print)
+		walk(n.Right, depth+1)
+		printNode(n, depth)
+		walk(n.Left, depth+1)
 	}
-	walk(t.Root, func(n *Node) {
-		fmt.Printf("%s%s\n", strings.Repeat("  ", n.Height()-1), n.Value)
-	})
+
+	walk(t.Root, 0)
 }
 
 // `Dump` dumps the tree structure.
@@ -491,6 +500,7 @@ func main() {
 	tree.Traverse(tree.Root, func(n *Node) { fmt.Print(n.Value, ": ", n.Data, " | ") })
 	fmt.Println()
 
+	fmt.Println("Pretty print (turned 90° anti-clockwise):")
 	tree.PrettyPrint()
 }
 
