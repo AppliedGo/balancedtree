@@ -149,7 +149,7 @@ func TestTree_rebalance(t *testing.T) {
 
 			heightImbalance := ""
 			if float64(h) > exh {
-				heightImbalance = fmt.Sprintf("Height: %d - expected: %0f\nLeft.height(): %d, Right.height(): %d\n", h, exh, lh, rh)
+				heightImbalance = fmt.Sprintf("Height: %d - expected: %0f\nLeft.Height(): %d, Right.Height(): %d\n", h, exh, lh, rh)
 			}
 			wrongBalanceFactors := tt.Root.checkBalances()
 			problem := heightImbalance + wrongBalanceFactors
