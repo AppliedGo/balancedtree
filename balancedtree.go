@@ -31,8 +31,8 @@ Only a well-balanced search tree can provide optimal search performance. This ar
 <!--more-->
 
 > Get the Balance Right!
->
-> ~ Depeche Mode
+
+*~ Depeche Mode*
 
 
 ## How a tree can get out of balance
