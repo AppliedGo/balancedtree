@@ -161,6 +161,11 @@ HYPE[Re-balance](Rebalance.html)
 
 ## The Code
 
+___
+
+**Update:** a version of this code using type parameters (a.k.a generics) is available in the article [How I turned a binary search tree into a generic data structure with go2go · Applied Go](https://appliedgo.net/generictree/)
+___
+
 Now, after all this theory, let's see how to add the balancing into the code from the previous article.
 
 First, we set up two helper functions, `min` and `max`, that we will need later.
