@@ -163,7 +163,7 @@ HYPE[Re-balance](Rebalance.html)
 
 ___
 
-**Update:** a version of this code using type parameters (a.k.a generics) is available in the article [How I turned a binary search tree into a generic data structure with go2go · Applied Go](https://appliedgo.net/generictree/)
+**Update:** a version of this code using type parameters (a.k.a generics) is available in the article [How I turned a binary search tree into a generic data structure with go2go · Applied Go]({{< ref "/generictree/" >}})
 ___
 
 Now, after all this theory, let's see how to add the balancing into the code from the previous article.
@@ -174,7 +174,6 @@ First, we set up two helper functions, `min` and `max`, that we will need later.
 ### Imports, helper functions, and globals
 */
 
-//
 package main
 
 import (
@@ -386,7 +385,6 @@ Changes to the Tree type:
 
 */
 
-//
 type Tree struct {
 	Root *Node
 }
@@ -487,7 +485,6 @@ The small letters are the search values. "L" and "R" denote if the child node is
 If everything works correctly, the `Traverse` method should finally print out the nodes in alphabetical sort order.
 */
 
-//
 func main() {
 	// The values are sorted in a way that causes two single rotations and a double rotation.
 	values := []string{"d", "b", "g", "g", "c", "e", "a", "h", "f", "i", "j", "l", "k"}
