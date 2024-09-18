@@ -163,7 +163,7 @@ HYPE[Re-balance](Rebalance.html)
 
 ___
 
-**Update:** a version of this code using type parameters (a.k.a generics) is available in the article [How I turned a binary search tree into a generic data structure with go2go · Applied Go]({{< ref "/generictree/" >}})
+**Update:** a version of this code using type parameters (a.k.a generics) is available in the article [How I turned a binary search tree into a generic data structure with go2go · Applied Go]({{< ref "/post/generictree/" >}})
 ___
 
 Now, after all this theory, let's see how to add the balancing into the code from the previous article.
